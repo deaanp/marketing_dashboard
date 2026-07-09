@@ -14,7 +14,6 @@ CATEGORY_MAP = {
     "snack and pastry": "Snack & Pastry",
 }
 
-
 @st.cache_data
 def load_data():
 
