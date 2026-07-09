@@ -111,8 +111,6 @@ def revenue_trend(df):
 
 
 def top_selling_category(df):
-    """Kategori Produk Terlaris berdasarkan revenue."""
-
     temp = (
         df.groupby("top_selling_category", as_index=False)["total_revenue"]
         .sum()
@@ -146,8 +144,6 @@ def top_selling_category(df):
     return fig
 
 def city_contribution(df):
-    """Kontribusi revenue per kota -> prioritas alokasi budget marketing."""
-
     temp = (
         df.groupby("branch_city", as_index=False)["total_revenue"]
         .sum()
@@ -170,8 +166,6 @@ def city_contribution(df):
 # TAB 2 — EFEKTIVITAS PROMOSI
 # =====================================================
 def promo_revenue(df):
-    """Revenue yang dihasilkan tiap jenis promo -> mana yang paling efektif."""
-
     temp = (
         df[df["promo_active"]]
         .groupby("promo_type", as_index=False)["total_revenue"]
@@ -260,8 +254,6 @@ def promo_trend(df):
 
 
 def promo_vs_category(df):
-    """Kategori mana yang paling terdorong oleh promo -> targeting campaign."""
-
     temp = (
         df[df["promo_active"]]
         .groupby(["top_selling_category", "promo_type"], as_index=False)["total_revenue"]
@@ -286,8 +278,6 @@ def promo_vs_category(df):
 # TAB 3 — PREFERENSI CHANNEL & PERILAKU PELANGGAN
 # =====================================================
 def customer_channel(df):
-    """Komposisi channel transaksi -> alokasi budget digital vs on-site."""
-
     temp = go_channel_df(df)
 
     fig = px.pie(
@@ -340,8 +330,6 @@ def go_channel_df(df):
 
 
 def channel_by_city(df):
-    """Perbandingan preferensi channel antar kota -> strategi channel lokal."""
-
     temp = (
         df.groupby("branch_city")[["dine_in_percent", "delivery_percent", "takeaway_percent"]]
         .mean()

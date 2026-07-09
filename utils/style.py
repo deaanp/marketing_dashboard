@@ -37,7 +37,7 @@ def load_css():
     }
 
     /* ==========================================================
-                            PAGE / NO SCROLL
+                            PAGE
     ========================================================== */
 
     .stApp{ background:var(--background); }
@@ -97,7 +97,7 @@ def load_css():
     }
 
     /* ==========================================================
-                            SECTION HEADER (per tab)
+                            SECTION HEADER 
     ========================================================== */
 
     .section-head{
@@ -279,8 +279,6 @@ def load_css():
     ::-webkit-scrollbar{ width:8px; height:8px; }
     ::-webkit-scrollbar-thumb{ background:#D8C6B4; border-radius:8px; }
 
-    /* Tab strip: kalau ada banyak tab & layar sempit, scroll ke samping
-       daripada teks tab saling bertabrakan/terpotong. */
     div[data-baseweb="tab-list"]{
         overflow-x:auto;
         overflow-y:hidden;
@@ -290,10 +288,7 @@ def load_css():
     div[data-baseweb="tab-list"]::-webkit-scrollbar{ display:none; }
 
     /* ==========================================================
-       RESPONSIF — TABLET (laptop kecil, iPad, dsb)
-       Chart & filter Streamlit sendiri sudah otomatis susun ulang
-       (stack) di layar sempit; bagian ini menyesuaikan elemen HTML
-       custom (KPI card, header, filter) supaya ikut menyesuaikan.
+       RESPONSIVE
     ========================================================== */
 
     @media (max-width: 1100px){
@@ -307,10 +302,6 @@ def load_css():
             grid-template-columns:repeat(2, 1fr);
         }
     }
-
-    /* ==========================================================
-       RESPONSIF — HANDPHONE
-    ========================================================== */
 
     @media (max-width: 640px){
 
@@ -326,27 +317,22 @@ def load_css():
         .app-header h1{ font-size:17px; line-height:1.25; }
         .app-header .subtitle{ font-size:11.5px; }
 
-        /* Section header per tab */
+        /* Section header */
         .section-head{ align-items:flex-start; }
         .section-head-icon{ width:26px; height:26px; }
         .section-head-title{ font-size:14px; }
         .section-head-sub{ font-size:11px; }
 
-        /* KPI card: 1 kolom penuh, lebih mudah dibaca sambil scroll */
         .kpi-row{
             grid-template-columns:1fr;
             gap:8px;
         }
         .kpi-value{ font-size:17px; }
 
-        /* Chart card: rapatkan sedikit padding di layar sempit */
         div[data-testid="stVerticalBlock"] > div:has(> div > div[data-testid="stPlotlyChart"]){
             padding:10px 10px 4px 10px;
         }
 
-        /* Filter: kembalikan label & perbesar target tap supaya nyaman
-           disentuh jari, dan filter (yang di HP tersusun vertikal
-           satu per satu) tetap jelas mana Tahun/Kota/Promo/dst. */
         div[data-testid="stVerticalBlockBorderWrapper"]:has(div[data-baseweb="select"]){
             margin-bottom:8px !important;
             padding:10px 12px !important;
@@ -372,8 +358,6 @@ def load_css():
             height:16px !important;
         }
 
-        /* Tab: teks & padding lebih kecil supaya ke-4 tab tetap muat
-           berdampingan / mudah discroll di layar sempit. */
         button[data-baseweb="tab"]{
             font-size:12px;
             padding:7px 11px;
