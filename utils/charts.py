@@ -77,6 +77,39 @@ def _rev_axis_title():
     return "Revenue (Miliar Rp)"
 
 
+def _dynamic_range(values, pad_ratio=0.35, min_pad=0.05, floor_at_zero=True):
+    """
+    Hitung range sumbu secara dinamis berdasarkan data yang sudah difilter,
+    bukan angka hardcode. Mencegah bar 'hilang' saat filter membuat nilai
+    data jauh lebih kecil/besar dari rentang yang sebelumnya di-hardcode.
+
+    - values: iterable angka (misal kolom pandas)
+    - pad_ratio: persentase padding dari selisih max-min
+    - min_pad: padding minimum kalau semua nilai sama / cuma 1 titik
+    - floor_at_zero: kalau True, batas bawah tidak akan turun di bawah 0
+      (cocok untuk chart revenue yang tidak mungkin negatif)
+    """
+    values = [v for v in values if v == v]  # buang NaN
+
+    if not values:
+        return [0, 1]
+
+    vmin, vmax = min(values), max(values)
+
+    if vmin == vmax:
+        pad = max(abs(vmin) * pad_ratio, min_pad)
+    else:
+        pad = max((vmax - vmin) * pad_ratio, min_pad)
+
+    low = vmin - pad
+    high = vmax + pad
+
+    if floor_at_zero and low < 0 <= vmin:
+        low = 0
+
+    return [low, high]
+
+
 # =====================================================
 # TAB 1 — RINGKASAN PERFORMA PEMASARAN
 # =====================================================
@@ -119,10 +152,10 @@ def top_selling_category(df):
     temp["revenue_m"] = temp["total_revenue"] / MILIAR
 
     fig = px.bar(temp, x="revenue_m", y="top_selling_category", orientation="h")
-    
+
     fig.update_traces(
         texttemplate="%{x:.1f} M",
-        textposition="outside", 
+        textposition="outside",
         hovertemplate="<b>%{y}</b><br>Revenue: Rp %{x:,.2f} Miliar<extra></extra>"
     )
 
@@ -130,6 +163,8 @@ def top_selling_category(df):
     fig.update_layout(
         xaxis_title="Revenue (Miliar Rp)",
         yaxis_title="",
+        # FIX: range dihitung dari data ter-filter, bukan angka tetap
+        xaxis_range=_dynamic_range(temp["revenue_m"]),
         margin=dict(
             l=0,
             r=80,
@@ -137,7 +172,7 @@ def top_selling_category(df):
             b=40
         ),
         yaxis=dict(
-            automargin=True,        
+            automargin=True,
             ticklabelstandoff=4
         )
     )
@@ -166,6 +201,16 @@ def city_contribution(df):
 # TAB 2 — EFEKTIVITAS PROMOSI
 # =====================================================
 def promo_revenue(df):
+    """
+    Chart 'Revenue per Jenis Promo'.
+
+    FIX: xaxis_range sebelumnya di-hardcode (mis. [9.0, 12.5]) berdasarkan
+    rentang nilai data TANPA filter. Begitu user apply filter (kota/tahun/
+    tipe cabang dll), total revenue per promo bisa jauh lebih kecil dari
+    9.0 Miliar, sehingga bar keluar dari rentang sumbu dan JADI TIDAK
+    TERLIHAT SAMA SEKALI walau datanya ada. Sekarang range dihitung dinamis
+    dari data yang sudah difilter (temp["revenue_m"]).
+    """
     temp = (
         df[df["promo_active"]]
         .groupby("promo_type", as_index=False)["total_revenue"]
@@ -181,17 +226,18 @@ def promo_revenue(df):
         textposition="outside",
         hovertemplate="<b>%{y}</b><br>Revenue: Rp %{x:,.2f} Miliar<extra></extra>"
     )
-    
+
     fig = _single_bar(fig, COLOR_PROMO)
-    
+
     fig.update_layout(
         xaxis_title="Revenue (Miliar Rp)",
         yaxis_title="",
-        xaxis_range=[9.0, 12.3],
+        # FIX: dinamis, bukan hardcode [9.0, 12.5]
+        xaxis_range=_dynamic_range(temp["revenue_m"]),
         margin=dict(
-            l=0,    
+            l=0,
             r=45,
-            t=15, 
+            t=15,
             b=40
         ),
         yaxis=dict(
@@ -220,31 +266,18 @@ def promo_trend(df):
     )
 
     fig.update_layout(
-
         legend=dict(
-
             orientation="h",
-
             y=1.28,
-
             x=0,
-
             font=dict(size=10),
-
             itemwidth=30
-
         ),
-
         margin=dict(
-
             t=90,
-
             l=55,
-
             r=25
-
         )
-
     )
     fig.update_traces(
         hovertemplate="<b>%{x}</b><br>Rp %{y:,.2f} Miliar<extra></extra>",
@@ -286,27 +319,18 @@ def customer_channel(df):
     )
 
     fig.update_layout(
-
         margin=dict(l=40, r=40, t=35, b=20),
-
         uniformtext_minsize=10,
         uniformtext_mode="hide",
-
         showlegend=False,
-
         piecolorway=[COLOR_CUSTOMER, "#7BC4B4", "#C7E4DC"]
     )
 
     fig.update_traces(
-
         textposition="outside",
-
         automargin=True,
-
-        pull=[0,0,0],
-
+        pull=[0, 0, 0],
         sort=False,
-
         rotation=90
     )
 
@@ -378,8 +402,8 @@ def weekend_vs_weekday(df):
         yaxis=dict(
             title="Revenue (Juta Rp)",
             range=[
-                ymin-padding,
-                ymax+padding
+                ymin - padding,
+                ymax + padding
             ]
         )
     )
@@ -436,6 +460,13 @@ def promo_by_city(df):
 
 
 def satisfaction_by_city(df):
+    """
+    FIX: xaxis_range sebelumnya di-hardcode [3.75, 3.89] berdasarkan rentang
+    skor kepuasan TANPA filter. Kalau filter membuat skor kepuasan di luar
+    rentang sempit itu (atau cuma 1 kota tersisa), bar bisa hilang atau
+    tampak 'penuh'/terpotong. Sekarang range dihitung dinamis dari data
+    yang sudah difilter.
+    """
     temp = (
         df.groupby("branch_city", as_index=False)["customer_satisfaction"]
         .mean()
@@ -443,23 +474,25 @@ def satisfaction_by_city(df):
     )
 
     fig = px.bar(temp, x="customer_satisfaction", y="branch_city", orientation="h")
-    
+
     fig.update_traces(
         texttemplate="%{x:.2f}",
         textposition="outside",
         hovertemplate="<b>%{y}</b><br>Kepuasan: %{x:.2f}/5<extra></extra>",
     )
-    
+
     fig = _single_bar(fig, COLOR_REVENUE)
-    
+
     fig.update_layout(
         xaxis_title="",
         yaxis_title="",
-        xaxis_range=[3.75, 3.89],
+        # FIX: dinamis, bukan hardcode [3.75, 3.89]. Skala 0-5 diberi floor
+        # supaya bar tetap proporsional & tidak melebihi skala penilaian asli.
+        xaxis_range=_dynamic_range(temp["customer_satisfaction"], pad_ratio=0.6, min_pad=0.1),
         margin=dict(
-            l=0,    
+            l=0,
             r=45,
-            t=15, 
+            t=15,
             b=25
         ),
         yaxis=dict(
@@ -467,44 +500,6 @@ def satisfaction_by_city(df):
             ticklabelstandoff=4,
             categoryorder="array",
             categoryarray=temp["branch_city"].tolist()
-        )
-    )
-    return fig
-
-
-def promo_revenue(df):
-    temp = (
-        df[df["promo_active"]]
-        .groupby("promo_type", as_index=False)["total_revenue"]
-        .sum()
-        .sort_values("total_revenue", ascending=True)
-    )
-    temp["revenue_m"] = temp["total_revenue"] / MILIAR
-
-    fig = px.bar(temp, x="revenue_m", y="promo_type", orientation="h")
-
-    fig.update_traces(
-        texttemplate="%{x:.1f} M",
-        textposition="outside",
-        hovertemplate="<b>%{y}</b><br>Revenue: Rp %{x:,.2f} Miliar<extra></extra>"
-    )
-
-    fig = _single_bar(fig, COLOR_PROMO)
-    fig.update_layout(
-        xaxis_title="Revenue (Miliar Rp)",
-        yaxis_title="",
-        xaxis_range=[9.0, 12.5], 
-        margin=dict(
-            l=0,
-            r=80,
-            t=15, 
-            b=40
-        ),
-        yaxis=dict(
-            automargin=True,
-            ticklabelstandoff=4,
-            categoryorder="array",
-            categoryarray=temp["promo_type"].tolist()
         )
     )
     return fig

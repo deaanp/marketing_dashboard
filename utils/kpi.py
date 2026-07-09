@@ -43,9 +43,13 @@ def promo_kpis(df):
     else:
         uplift_sub = "Promo vs non-promo"
 
-    promo_terpopuler = (
-        promo_df.groupby("promo_type")["total_transactions"].sum().idxmax()
-    )
+    # --- FIX: guard kalau promo_df kosong (filter menghasilkan 0 baris promo) ---
+    if promo_df.empty:
+        promo_terpopuler = "-"
+    else:
+        promo_terpopuler = (
+            promo_df.groupby("promo_type")["total_transactions"].sum().idxmax()
+        )
 
     return [
         dict(label="Transaksi via Promo", value=fmt_compact(transaksi_promo),
@@ -66,15 +70,26 @@ def behavior_kpis(df):
     takeaway = df["takeaway_percent"].mean()
 
     channel_map = {"Dine In": dine_in, "Delivery": delivery, "Take Away": takeaway}
-    dominant_channel = max(channel_map, key=channel_map.get)
+
+    # --- FIX: guard kalau semua channel NaN (df kosong/kolom kosong) ---
+    if all(pd_isna(v) for v in channel_map.values()):
+        dominant_channel = "-"
+        dominant_sub = "Data channel tidak tersedia untuk filter ini"
+    else:
+        dominant_channel = max(channel_map, key=lambda k: (channel_map[k] if not pd_isna(channel_map[k]) else -1))
+        dominant_sub = f"{channel_map[dominant_channel]:.1f}% dari transaksi"
 
     weekday_avg = df.loc[~df["is_weekend"], "total_revenue"].mean()
     weekend_avg = df.loc[df["is_weekend"], "total_revenue"].mean()
     weekend_uplift = ((weekend_avg - weekday_avg) / weekday_avg * 100) if weekday_avg else 0
 
-    top_delivery_city = (
-        df.groupby("branch_city")["delivery_percent"].mean().idxmax()
-    )
+    # --- FIX: guard kalau branch_city grouping kosong ---
+    if df.empty or df["delivery_percent"].dropna().empty:
+        top_delivery_city = "-"
+    else:
+        top_delivery_city = (
+            df.groupby("branch_city")["delivery_percent"].mean().idxmax()
+        )
 
     channel_cols = {
         "Dine In": "dine_in_percent",
@@ -85,23 +100,47 @@ def behavior_kpis(df):
     weekend_mix = df.loc[df["is_weekend"], list(channel_cols.values())].mean()
     shift = weekend_mix - weekday_mix
     shift.index = list(channel_cols.keys())
-    top_shift_channel = shift.abs().idxmax()
-    top_shift_value = shift[top_shift_channel]
+
+    # --- FIX UTAMA: guard against all-NaN shift ---
+    # Ini terjadi kalau filter yang dipilih user membuat data hanya berisi
+    # weekday saja atau weekend saja, sehingga salah satu mean() kosong (NaN),
+    # membuat idxmax() mengembalikan nan yang bukan label valid di index shift.
+    if shift.isna().all():
+        top_shift_channel = "-"
+        shift_sub = "Data weekday/weekend tidak lengkap untuk filter ini"
+    else:
+        top_shift_channel = shift.abs().idxmax()
+        top_shift_value = shift[top_shift_channel]
+        shift_sub = f"menyusut {top_shift_value:+.1f} poin dibanding weekday"
 
     return [
         dict(label="Channel Dominan", value=dominant_channel,
-             sub=f"{channel_map[dominant_channel]:.1f}% dari transaksi",
+             sub=dominant_sub,
              icon="users", color="customer"),
         dict(label="Selisih Revenue Weekend", value=f"{weekend_uplift:+.1f}%",
              sub="Dibanding rata-rata weekday", icon="calendar", color="revenue"),
         dict(label="Channel Paling Bergeser di Weekend", value=top_shift_channel,
-             sub=f"menyusut {top_shift_value:+.1f} poin dibanding weekday",
+             sub=shift_sub,
              icon="trend", color="category"),
         dict(label="Kota Delivery Tertinggi", value=top_delivery_city,
              sub="Rata-rata persentase delivery", icon="map", color="promo"),
     ]
 
+
 def opportunity_kpis(df):
+
+    # --- FIX: guard kalau df hasil filter kosong total ---
+    if df.empty:
+        return [
+            dict(label="Kota Revenue Tertinggi", value="-",
+                 sub="Tidak ada data", icon="map", color="revenue"),
+            dict(label="Kota Paling Loyal", value="-",
+                 sub="Tidak ada data", icon="satisfaction", color="category"),
+            dict(label="Promo Paling Efektif", value="-",
+                 sub="Tidak ada data", icon="gift", color="promo"),
+            dict(label="Peluang Ekspansi Tertinggi", value="-",
+                 sub="Tidak ada data", icon="trend", color="customer"),
+        ]
 
     city_stats = (
         df.groupby("branch_city")
@@ -117,7 +156,12 @@ def opportunity_kpis(df):
     most_loyal_score = city_stats["satisfaction"].max()
 
     promo_df = df[df["promo_active"]]
-    best_promo = promo_df.groupby("promo_type")["total_revenue"].sum().idxmax()
+
+    # --- FIX: guard kalau tidak ada transaksi promo pada filter ini ---
+    if promo_df.empty:
+        best_promo = "-"
+    else:
+        best_promo = promo_df.groupby("promo_type")["total_revenue"].sum().idxmax()
 
     city_stats["revenue_rank"] = city_stats["revenue"].rank(ascending=False)
     city_stats["satisfaction_rank"] = city_stats["satisfaction"].rank(ascending=False)
@@ -144,3 +188,8 @@ def opportunity_kpis(df):
              sub=opportunity_sub,
              icon="trend", color="customer"),
     ]
+
+
+def pd_isna(value):
+    """Helper kecil biar nggak perlu import pandas cuma buat cek NaN tunggal."""
+    return value != value  
